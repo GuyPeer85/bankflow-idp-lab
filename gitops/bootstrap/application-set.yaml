@@ -1,0 +1,49 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+
+metadata:
+  name: bankflow-services
+  namespace: argocd
+
+spec:
+  goTemplate: true
+  goTemplateOptions:
+    - missingkey=error
+
+  generators:
+    - git:
+        repoURL: https://github.com/GuyPeer85/bankflow-idp-lab.git
+        revision: main
+        directories:
+          - path: gitops/services/*/dev
+          - path: gitops/services/*/test
+          - path: gitops/services/*/prod
+
+  template:
+    metadata:
+      name: '{{index .path.segments 2}}-{{index .path.segments 3}}'
+      labels:
+        bankflow.io/service: '{{index .path.segments 2}}'
+        bankflow.io/environment: '{{index .path.segments 3}}'
+        bankflow.io/managed-by: applicationset
+
+    spec:
+      project: default
+
+      source:
+        repoURL: https://github.com/GuyPeer85/bankflow-idp-lab.git
+        targetRevision: main
+        path: '{{.path.path}}'
+
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{index .path.segments 3}}'
+
+      syncPolicy:
+        automated:
+          enabled: true
+          prune: true
+          selfHeal: true
+
+  syncPolicy:
+    preserveResourcesOnDeletion: true
