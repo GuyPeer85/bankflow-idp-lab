@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+
+metadata:
+  name: payments-api-dev
+  namespace: argocd
+  labels:
+    bankflow.io/environment: dev
+    bankflow.io/owner: payments-team
+
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/GuyPeer85/bankflow-idp-lab.git
+    targetRevision: main
+    path: gitops/services/payments-api/dev
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: dev
+
+  syncPolicy:
+    automated:
+      enabled: true
+      prune: true
+      selfHeal: true
