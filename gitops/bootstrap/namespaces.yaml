@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: platform-system
+  labels:
+    bankflow.io/purpose: platform
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dev
+  labels:
+    bankflow.io/environment: dev
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: test
+  labels:
+    bankflow.io/environment: test
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: prod
+  labels:
+    bankflow.io/environment: prod
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: argocd
+  labels:
+    bankflow.io/purpose: gitops
