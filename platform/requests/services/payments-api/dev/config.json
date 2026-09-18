@@ -1,0 +1,28 @@
+{
+  "apiVersion": "platform.bankflow.io/v1alpha1",
+  "kind": "ServiceRequest",
+  "metadata": {
+    "name": "payments-api",
+    "owner": "payments-team"
+  },
+  "spec": {
+    "workloadType": "http-api",
+    "environment": "dev",
+    "clusterClass": "general",
+    "goldenPath": {
+      "name": "http-api",
+      "channel": "stable",
+      "version": "1.0.0"
+    },
+    "image": {
+      "repository": "bankflow/payments-api",
+      "tag": "1.0.0"
+    },
+    "size": "small",
+    "replicas": 2,
+    "exposure": "internal",
+    "features": {
+      "pilotMode": false
+    }
+  }
+}
