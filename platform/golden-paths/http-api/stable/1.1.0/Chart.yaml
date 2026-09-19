@@ -1,0 +1,5 @@
+apiVersion: v2
+name: bankflow-http-api
+description: Bankflow Golden Path for internal HTTP APIs
+type: application
+version: 1.1.0

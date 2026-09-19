@@ -32,6 +32,13 @@ class ServiceFeatures(PlatformModel):
         alias="pilotMode",
     )
 
+    autoscaling: bool = False
+
+    pod_disruption_budget: bool = Field(
+        default=False,
+        alias="podDisruptionBudget",
+    )
+
 
 class ServiceException(PlatformModel):
     id: str
@@ -106,6 +113,8 @@ class ServiceRequest(PlatformModel):
                     "exposure": "internal",
                     "features": {
                         "pilotMode": False,
+                        "autoscaling": False,
+                        "podDisruptionBudget": False,
                     },
                 },
             }

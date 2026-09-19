@@ -1,5 +1,24 @@
 ---
 # Source: bankflow-http-api/templates/workload.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+
+metadata:
+  name: payments-api-selfservice
+  namespace: dev
+  labels:
+    app.kubernetes.io/name: payments-api-selfservice
+    bankflow.io/owner: "payments-team"
+    bankflow.io/environment: "dev"
+
+spec:
+  minAvailable: 1
+
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: payments-api-selfservice
+---
+# Source: bankflow-http-api/templates/workload.yaml
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -47,10 +66,10 @@ metadata:
     bankflow.io/channel: "stable"
   annotations:
     bankflow.io/golden-path: "http-api"
-    bankflow.io/golden-path-version: "1.0.0"
+    bankflow.io/golden-path-version: "1.1.0"
 
 spec:
-  replicas: 2
+
 
   strategy:
     type: RollingUpdate
@@ -144,3 +163,36 @@ spec:
       volumes:
         - name: temporary-files
           emptyDir: {}
+---
+# Source: bankflow-http-api/templates/workload.yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+
+metadata:
+  name: payments-api-selfservice
+  namespace: dev
+  labels:
+    app.kubernetes.io/name: payments-api-selfservice
+    bankflow.io/owner: "payments-team"
+    bankflow.io/environment: "dev"
+
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: payments-api-selfservice
+
+  minReplicas: 2
+  maxReplicas: 3
+
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 60
+
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 60
