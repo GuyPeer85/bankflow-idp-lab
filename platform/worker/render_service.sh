@@ -19,6 +19,17 @@ OUTPUT_FILE="$2"
 PROFILES_FILE="platform/catalog/resource-profiles.json"
 VALIDATOR="platform/worker/validate_request.py"
 
+KUBERNETES_VALIDATION_MODE="${KUBERNETES_VALIDATION_MODE:-server}"
+
+if [[ \
+  "${KUBERNETES_VALIDATION_MODE}" != "server" &&
+  "${KUBERNETES_VALIDATION_MODE}" != "client"
+]]
+then
+  echo "[REJECTED] KUBERNETES_VALIDATION_MODE must be server or client"
+  exit 1
+fi
+
 if [[ ! -f "${REQUEST_FILE}" ]]; then
   echo "[REJECTED] Request file does not exist: ${REQUEST_FILE}"
   exit 1
@@ -113,16 +124,23 @@ helm template "${SERVICE_NAME}" \
   -f "${REQUEST_FILE}" \
   > "${TEMP_FILE}"
 
-echo "[4/4] Asking Kubernetes API to validate the result"
+if [[ "${KUBERNETES_VALIDATION_MODE}" == "server" ]]; then
+  echo "[4/4] Validating against the Kubernetes API"
 
-kubectl apply \
-  --dry-run=server \
-  -f "${TEMP_FILE}" \
-  >/dev/null
+  kubectl apply \
+    --dry-run=server \
+    -f "${TEMP_FILE}" \
+    >/dev/null
+else
+  echo "[4/4] Completing offline CI validation"
+  echo "      Helm lint and manifest rendering passed"
+fi
 
 mkdir -p "$(dirname -- "${OUTPUT_FILE}")"
 
-if [[ -f "${OUTPUT_FILE}" ]] && cmp -s "${TEMP_FILE}" "${OUTPUT_FILE}"; then
+if [[ -f "${OUTPUT_FILE}" ]] &&
+  cmp -s "${TEMP_FILE}" "${OUTPUT_FILE}"
+then
   echo "[NO CHANGE] Generated manifest is already up to date"
 else
   cp -- "${TEMP_FILE}" "${OUTPUT_FILE}"
@@ -137,4 +155,5 @@ echo "Golden Path:         ${GOLDEN_PATH_NAME}"
 echo "Channel:             ${GOLDEN_PATH_CHANNEL}"
 echo "Golden Path version: ${CHART_VERSION}"
 echo "Chart directory:     ${CHART_DIR}"
+echo "Validation mode:      ${KUBERNETES_VALIDATION_MODE}"
 echo "[SUCCESS] Request validated and rendered"

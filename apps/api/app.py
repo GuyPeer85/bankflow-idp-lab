@@ -6,6 +6,12 @@ from apps.api.models import ServiceRequest
 from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from apps.api.models import ServiceRequest
+from apps.api.service_creator import (
+    ServiceAlreadyExistsError,
+    WorkerExecutionError,
+    create_service_draft,
+)
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -56,6 +62,30 @@ def load_validator_module():
 
 
 validator = load_validator_module()
+
+def validate_against_platform(
+    service_request: ServiceRequest,
+):
+    """
+    ממיר את מודל Pydantic לנתונים רגילים
+    ומפעיל את מדיניות הפלטפורמה.
+    """
+
+    request_data = service_request.model_dump(
+        by_alias=True,
+        exclude_none=True,
+    )
+
+    profiles = validator.load_json(
+        PROFILES_PATH
+    )
+
+    errors = validator.validate_request(
+        request_data,
+        profiles,
+    )
+
+    return request_data, errors
 
 app = FastAPI(
     title="Bankflow Platform API",
@@ -133,16 +163,10 @@ def validate_service_request(
     - Approved עם תצוגה מקדימה.
     - Rejected עם רשימת שגיאות.
     """
-    request_data = service_request.model_dump(
-        by_alias=True,
-        exclude_none=True,
-    )
-
-    profiles = validator.load_json(PROFILES_PATH)
-
-    errors = validator.validate_request(
-        request_data,
-        profiles,
+    request_data, errors = (
+        validate_against_platform(
+            service_request
+        )
     )
 
     if errors:
@@ -190,4 +214,69 @@ def validate_service_request(
             "ServiceRequest passed the platform guardrails"
         ),
         "preview": preview,
+    }
+
+@app.post(
+    "/api/v1/service-requests",
+    status_code=201,
+)
+def create_service_request(
+    service_request: ServiceRequest,
+):
+    """
+    מאמת בקשת שירות ויוצר טיוטת GitOps מקומית.
+
+    הפעולה אינה מבצעת commit, push או deployment.
+    """
+
+    request_data, errors = (
+        validate_against_platform(
+            service_request
+        )
+    )
+
+    if errors:
+        return JSONResponse(
+            status_code=422,
+            content={
+                "status": "rejected",
+                "created": False,
+                "errors": errors,
+            },
+        )
+
+    try:
+        draft = create_service_draft(
+            request_data=request_data,
+            repository_root=REPOSITORY_ROOT,
+        )
+
+    except ServiceAlreadyExistsError as error:
+        return JSONResponse(
+            status_code=409,
+            content={
+                "status": "conflict",
+                "created": False,
+                "errors": [
+                    str(error),
+                ],
+            },
+        )
+
+    except WorkerExecutionError as error:
+        return JSONResponse(
+            status_code=500,
+            content={
+                "status": "worker-failed",
+                "created": False,
+                "errors": [
+                    str(error),
+                ],
+            },
+        )
+
+    return {
+        "status": "draft-created",
+        "created": True,
+        "draft": draft,
     }

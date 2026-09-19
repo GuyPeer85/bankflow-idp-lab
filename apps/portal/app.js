@@ -2,6 +2,8 @@ const form = document.querySelector("#serviceForm");
 const resultPanel = document.querySelector("#resultPanel");
 const validateButton = document.querySelector("#validateButton");
 
+let approvedServiceRequest = null;
+
 
 function escapeHtml(value) {
   return String(value).replace(
@@ -23,16 +25,25 @@ function buildServiceRequest() {
     kind: "ServiceRequest",
 
     metadata: {
-      name: document.querySelector("#serviceName").value.trim(),
-      owner: document.querySelector("#owner").value.trim(),
+      name: document
+        .querySelector("#serviceName")
+        .value
+        .trim(),
+
+      owner: document
+        .querySelector("#owner")
+        .value
+        .trim(),
     },
 
     spec: {
-      workloadType:
-        document.querySelector("#workloadType").value,
+      workloadType: document
+        .querySelector("#workloadType")
+        .value,
 
-      environment:
-        document.querySelector("#environment").value,
+      environment: document
+        .querySelector("#environment")
+        .value,
 
       clusterClass: "general",
 
@@ -43,27 +54,60 @@ function buildServiceRequest() {
       },
 
       image: {
-        repository:
-          document.querySelector("#imageRepository").value.trim(),
+        repository: document
+          .querySelector("#imageRepository")
+          .value
+          .trim(),
 
-        tag:
-          document.querySelector("#imageTag").value.trim(),
+        tag: document
+          .querySelector("#imageTag")
+          .value
+          .trim(),
       },
 
-      size: document.querySelector("#size").value,
+      size: document
+        .querySelector("#size")
+        .value,
 
       replicas: Number(
-        document.querySelector("#replicas").value,
+        document
+          .querySelector("#replicas")
+          .value,
       ),
 
-      exposure:
-        document.querySelector("#exposure").value,
+      exposure: document
+        .querySelector("#exposure")
+        .value,
 
       features: {
         pilotMode: false,
       },
     },
   };
+}
+
+
+function showWaitingForValidation() {
+  resultPanel.className = "preview-card";
+
+  resultPanel.innerHTML = `
+    <div class="preview-heading">
+      <p class="eyebrow">REQUEST PREVIEW</p>
+      <h2>Validation required</h2>
+    </div>
+
+    <div class="empty-preview">
+      <div class="document-icon">✓</div>
+
+      <p>
+        The request changed and must be validated again.
+      </p>
+
+      <small>
+        Nothing has been created.
+      </small>
+    </div>
+  `;
 }
 
 
@@ -78,7 +122,10 @@ function showLoading() {
 
     <div class="empty-preview">
       <div class="loading-indicator"></div>
-      <p>Checking platform guardrails...</p>
+
+      <p>
+        Checking platform guardrails...
+      </p>
     </div>
   `;
 }
@@ -94,7 +141,8 @@ function showApproved(result) {
     )
     .join("");
 
-  resultPanel.className = "preview-card is-approved";
+  resultPanel.className =
+    "preview-card is-approved";
 
   resultPanel.innerHTML = `
     <div class="preview-heading">
@@ -143,15 +191,36 @@ function showApproved(result) {
       <ul>${resources}</ul>
     </div>
 
+    <button
+      id="createDraftButton"
+      class="create-draft-button"
+      type="button"
+    >
+      Create GitOps draft
+    </button>
+
     <p class="preview-note">
-      Validation only — no resources were created.
+      This creates local Git files only.
+      It does not commit, push or deploy.
     </p>
   `;
+
+  const createDraftButton = document.querySelector(
+    "#createDraftButton",
+  );
+
+  createDraftButton.addEventListener(
+    "click",
+    createGitOpsDraft,
+  );
 }
 
 
 function normalizeErrors(result) {
-  const errors = result.errors || result.detail || [];
+  const errors =
+    result.errors ||
+    result.detail ||
+    [];
 
   if (!Array.isArray(errors)) {
     return ["The request was rejected."];
@@ -166,12 +235,17 @@ function normalizeErrors(result) {
       ? error.loc.join(" → ")
       : "request";
 
-    return `${location}: ${error.msg || "Invalid value"}`;
+    return (
+      `${location}: ` +
+      `${error.msg || "Invalid value"}`
+    );
   });
 }
 
 
 function showRejected(result) {
+  approvedServiceRequest = null;
+
   const errors = normalizeErrors(result);
 
   const errorItems = errors
@@ -181,7 +255,8 @@ function showRejected(result) {
     )
     .join("");
 
-  resultPanel.className = "preview-card is-rejected";
+  resultPanel.className =
+    "preview-card is-rejected";
 
   resultPanel.innerHTML = `
     <div class="preview-heading">
@@ -205,8 +280,62 @@ function showRejected(result) {
 }
 
 
+function showDraftCreated(result) {
+  approvedServiceRequest = null;
+
+  const draft = result.draft;
+
+  resultPanel.className =
+    "preview-card is-approved";
+
+  resultPanel.innerHTML = `
+    <div class="preview-heading">
+      <p class="eyebrow">GITOPS DRAFT CREATED</p>
+      <h2>${escapeHtml(draft.serviceName)}</h2>
+    </div>
+
+    <div class="result-status approved-status">
+      Files generated successfully
+    </div>
+
+    <div class="draft-files">
+      <h3>Generated files</h3>
+
+      <div>
+        <span>Service request</span>
+        <code>
+          ${escapeHtml(draft.requestFile)}
+        </code>
+      </div>
+
+      <div>
+        <span>Kubernetes manifest</span>
+        <code>
+          ${escapeHtml(draft.manifestFile)}
+        </code>
+      </div>
+    </div>
+
+    <div class="next-action">
+      <h3>Next controlled action</h3>
+
+      <p>
+        ${escapeHtml(draft.nextAction)}
+      </p>
+    </div>
+
+    <p class="preview-note">
+      No commit, push or deployment was performed.
+    </p>
+  `;
+}
+
+
 function showConnectionError() {
-  resultPanel.className = "preview-card is-rejected";
+  approvedServiceRequest = null;
+
+  resultPanel.className =
+    "preview-card is-rejected";
 
   resultPanel.innerHTML = `
     <div class="preview-heading">
@@ -223,19 +352,21 @@ function showConnectionError() {
 }
 
 
-form.addEventListener("submit", async (event) => {
-  event.preventDefault();
+async function createGitOpsDraft(event) {
+  const createButton = event.currentTarget;
 
-  showLoading();
+  if (!approvedServiceRequest) {
+    showWaitingForValidation();
+    return;
+  }
 
-  validateButton.disabled = true;
-  validateButton.textContent = "Validating...";
+  createButton.disabled = true;
+  createButton.textContent =
+    "Creating GitOps draft...";
 
   try {
-    const serviceRequest = buildServiceRequest();
-
     const response = await fetch(
-      "/api/v1/service-requests/validate",
+      "/api/v1/service-requests",
       {
         method: "POST",
 
@@ -243,14 +374,16 @@ form.addEventListener("submit", async (event) => {
           "Content-Type": "application/json",
         },
 
-        body: JSON.stringify(serviceRequest),
+        body: JSON.stringify(
+          approvedServiceRequest,
+        ),
       },
     );
 
     const result = await response.json();
 
-    if (response.ok && result.approved) {
-      showApproved(result);
+    if (response.ok && result.created) {
+      showDraftCreated(result);
     } else {
       showRejected(result);
     }
@@ -258,7 +391,75 @@ form.addEventListener("submit", async (event) => {
     console.error(error);
     showConnectionError();
   } finally {
-    validateButton.disabled = false;
-    validateButton.textContent = "Validate request";
+    createButton.disabled = false;
+    createButton.textContent =
+      "Create GitOps draft";
   }
-});
+}
+
+
+form.addEventListener(
+  "input",
+  () => {
+    if (approvedServiceRequest) {
+      approvedServiceRequest = null;
+      showWaitingForValidation();
+    }
+  },
+);
+
+
+form.addEventListener(
+  "submit",
+  async (event) => {
+    event.preventDefault();
+
+    approvedServiceRequest = null;
+
+    showLoading();
+
+    validateButton.disabled = true;
+    validateButton.textContent =
+      "Validating...";
+
+    try {
+      const serviceRequest =
+        buildServiceRequest();
+
+      const response = await fetch(
+        "/api/v1/service-requests/validate",
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type": "application/json",
+          },
+
+          body: JSON.stringify(
+            serviceRequest,
+          ),
+        },
+      );
+
+      const result = await response.json();
+
+      if (response.ok && result.approved) {
+        approvedServiceRequest =
+          JSON.parse(
+            JSON.stringify(serviceRequest),
+          );
+
+        showApproved(result);
+      } else {
+        showRejected(result);
+      }
+    } catch (error) {
+      console.error(error);
+      showConnectionError();
+    } finally {
+      validateButton.disabled = false;
+      validateButton.textContent =
+        "Validate request";
+    }
+  },
+);

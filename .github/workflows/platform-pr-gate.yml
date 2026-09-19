@@ -50,10 +50,6 @@ jobs:
         with:
           version: "v3.21.3"
 
-      - name: Set up kubectl
-        uses: azure/setup-kubectl@v5.1.0
-        with:
-          version: "v1.36.3"
 
       - name: Install API dependencies
         run: |
