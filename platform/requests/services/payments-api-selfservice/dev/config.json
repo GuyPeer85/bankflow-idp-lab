@@ -19,7 +19,7 @@
       "tag": "1.0.0"
     },
     "size": "small",
-    "replicas": 2,
+    "replicas": 99,
     "exposure": "internal",
     "features": {
       "pilotMode": false
