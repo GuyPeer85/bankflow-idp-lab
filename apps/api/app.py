@@ -4,7 +4,8 @@ import importlib.util
 from pathlib import Path
 from apps.api.models import ServiceRequest
 from fastapi import FastAPI
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -21,6 +22,12 @@ PROFILES_PATH = (
     / "platform"
     / "catalog"
     / "resource-profiles.json"
+)
+
+PORTAL_ROOT = (
+    REPOSITORY_ROOT
+    / "apps"
+    / "portal"
 )
 
 
@@ -59,6 +66,21 @@ app = FastAPI(
     version="0.1.0",
 )
 
+app.mount(
+    "/static",
+    StaticFiles(directory=PORTAL_ROOT),
+    name="static",
+)
+
+@app.get("/", include_in_schema=False)
+def developer_portal():
+    """
+    מחזיר את עמוד הבית של פורטל המפתחים.
+    """
+
+    return FileResponse(
+        PORTAL_ROOT / "index.html"
+    )
 
 @app.get("/health/live")
 def liveness():

@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1"
+  >
+
+  <title>Bankflow Developer Portal</title>
+
+  <link
+    rel="stylesheet"
+    href="/static/styles.css"
+  >
+</head>
+
+<body>
+  <header class="topbar">
+    <div>
+      <span class="product-name">Bankflow</span>
+      <span class="product-section">Developer Portal</span>
+    </div>
+
+    <div class="platform-status">
+      <span class="status-dot"></span>
+      Platform available
+    </div>
+  </header>
+
+  <main class="page">
+    <section class="page-heading">
+      <p class="eyebrow">SELF-SERVICE</p>
+      <h1>Create a service</h1>
+
+      <p class="description">
+        Describe what your application needs. The platform
+        will validate the request before creating anything.
+      </p>
+    </section>
+
+    <div class="workspace">
+      <form id="serviceForm" class="request-card">
+        <section class="form-section">
+          <div class="section-heading">
+            <span class="section-number">1</span>
+
+            <div>
+              <h2>Service identity</h2>
+              <p>Who owns this service?</p>
+            </div>
+          </div>
+
+          <div class="field-grid">
+            <label class="field">
+              <span>Service name</span>
+
+              <input
+                id="serviceName"
+                name="serviceName"
+                value="orders-api"
+                required
+              >
+
+              <small>
+                Lowercase letters, numbers and hyphens.
+              </small>
+            </label>
+
+            <label class="field">
+              <span>Owner</span>
+
+              <input
+                id="owner"
+                name="owner"
+                value="orders-team"
+                required
+              >
+
+              <small>
+                Team responsible for the service.
+              </small>
+            </label>
+          </div>
+        </section>
+
+        <section class="form-section">
+          <div class="section-heading">
+            <span class="section-number">2</span>
+
+            <div>
+              <h2>Runtime</h2>
+              <p>Where and how should it run?</p>
+            </div>
+          </div>
+
+          <div class="field-grid">
+            <label class="field">
+              <span>Environment</span>
+
+              <select id="environment" name="environment">
+                <option value="dev">Development</option>
+                <option value="test">Test</option>
+                <option value="prod">Production</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Workload type</span>
+
+              <select id="workloadType" name="workloadType">
+                <option value="http-api">HTTP API</option>
+                <option disabled>Frontend — coming soon</option>
+                <option disabled>
+                    Background worker — coming soon
+                </option>
+            </select>
+            </label>
+
+            <label class="field">
+              <span>Resource size</span>
+
+              <select id="size" name="size">
+                <option value="small">Small</option>
+                <option value="medium">Medium</option>
+                <option value="large">Large</option>
+              </select>
+
+              <small>
+                Resources come from approved platform profiles.
+              </small>
+            </label>
+
+            <label class="field">
+              <span>Replicas</span>
+
+              <input
+                id="replicas"
+                name="replicas"
+                type="number"
+                value="2"
+                min="1"
+                required
+              >
+            </label>
+
+            <label class="field">
+              <span>Exposure</span>
+
+              <select id="exposure" name="exposure">
+                <option value="internal">Internal</option>
+                <option disabled>External — coming soon</option>
+              </select>
+            </label>
+          </div>
+        </section>
+
+        <section class="form-section">
+          <div class="section-heading">
+            <span class="section-number">3</span>
+
+            <div>
+              <h2>Container image</h2>
+              <p>Which application version should run?</p>
+            </div>
+          </div>
+
+          <div class="field-grid">
+            <label class="field field-wide">
+              <span>Image repository</span>
+
+              <input
+                id="imageRepository"
+                name="imageRepository"
+                value="bankflow/orders-api"
+                required
+              >
+            </label>
+
+            <label class="field">
+              <span>Image tag</span>
+
+              <input
+                id="imageTag"
+                name="imageTag"
+                value="1.0.0"
+                required
+              >
+
+              <small>
+                The latest tag is not allowed.
+              </small>
+            </label>
+          </div>
+        </section>
+
+        <div class="form-actions">
+          <div class="selected-path">
+            Golden Path:
+            <strong>http-api / stable / 1.0.0</strong>
+          </div>
+
+          <button id="validateButton" type="submit">
+            Validate request
+          </button>
+        </div>
+      </form>
+
+      <aside id="resultPanel" class="preview-card">
+        <div class="preview-heading">
+          <p class="eyebrow">REQUEST PREVIEW</p>
+          <h2>Waiting for validation</h2>
+        </div>
+
+        <div class="empty-preview">
+          <div class="document-icon">✓</div>
+
+          <p>
+            Complete the form and validate the request.
+          </p>
+
+          <small>
+            Nothing will be created during validation.
+          </small>
+        </div>
+      </aside>
+    </div>
+  </main>
+  <script src="/static/app.js"></script>
+</body>
+</html>
