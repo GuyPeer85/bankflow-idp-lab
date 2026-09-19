@@ -1,3 +1,5 @@
+---
+# Source: bankflow-http-api/templates/workload.yaml
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -5,10 +7,34 @@ metadata:
   namespace: dev
   labels:
     app.kubernetes.io/name: payments-api
-    bankflow.io/owner: payments-team
+    bankflow.io/owner: "payments-team"
+    bankflow.io/environment: "dev"
 automountServiceAccountToken: false
-
 ---
+# Source: bankflow-http-api/templates/workload.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: payments-api
+  namespace: dev
+  labels:
+    app.kubernetes.io/name: payments-api
+    bankflow.io/owner: "payments-team"
+    bankflow.io/environment: "dev"
+
+spec:
+  type: ClusterIP
+
+  selector:
+    app.kubernetes.io/name: payments-api
+
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+---
+# Source: bankflow-http-api/templates/workload.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -16,7 +42,12 @@ metadata:
   namespace: dev
   labels:
     app.kubernetes.io/name: payments-api
-    bankflow.io/owner: payments-team
+    bankflow.io/owner: "payments-team"
+    bankflow.io/environment: "dev"
+    bankflow.io/channel: "stable"
+  annotations:
+    bankflow.io/golden-path: "http-api"
+    bankflow.io/golden-path-version: "1.0.0"
 
 spec:
   replicas: 2
@@ -35,7 +66,9 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: payments-api
-        bankflow.io/owner: payments-team
+        bankflow.io/owner: "payments-team"
+        bankflow.io/environment: "dev"
+        bankflow.io/channel: "stable"
 
     spec:
       serviceAccountName: payments-api
@@ -50,7 +83,7 @@ spec:
 
       containers:
         - name: payments-api
-          image: bankflow/payments-api:1.0.0
+          image: "bankflow/payments-api:1.0.0"
           imagePullPolicy: IfNotPresent
 
           ports:
@@ -61,6 +94,15 @@ spec:
           env:
             - name: APP_VERSION
               value: "1.0.0"
+
+            - name: PYTHONDONTWRITEBYTECODE
+              value: "1"
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: PLATFORM_CHANNEL
+              value: "stable"
+            - name: PILOT_MODE
+              value: "false"
 
           readinessProbe:
             httpGet:
@@ -82,11 +124,11 @@ spec:
 
           resources:
             requests:
-              cpu: 50m
-              memory: 64Mi
+              cpu: "50m"
+              memory: "64Mi"
             limits:
-              cpu: 250m
-              memory: 128Mi
+              cpu: "250m"
+              memory: "128Mi"
 
           securityContext:
             allowPrivilegeEscalation: false
@@ -95,24 +137,10 @@ spec:
               drop:
                 - ALL
 
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: payments-api
-  namespace: dev
-  labels:
-    app.kubernetes.io/name: payments-api
-    bankflow.io/owner: payments-team
+          volumeMounts:
+            - name: temporary-files
+              mountPath: /tmp
 
-spec:
-  type: ClusterIP
-
-  selector:
-    app.kubernetes.io/name: payments-api
-
-  ports:
-    - name: http
-      port: 80
-      targetPort: http
-      protocol: TCP
+      volumes:
+        - name: temporary-files
+          emptyDir: {}

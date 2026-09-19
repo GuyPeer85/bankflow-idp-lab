@@ -1,0 +1,157 @@
+{{- $name := .Values.metadata.name -}}
+{{- $owner := .Values.metadata.owner -}}
+{{- $environment := .Values.spec.environment -}}
+{{- $channel := .Values.spec.goldenPath.channel -}}
+{{- $goldenPathVersion := .Values.spec.goldenPath.version -}}
+{{- $profile := index .Values .Values.spec.size -}}
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: {{ $name }}
+    bankflow.io/owner: {{ $owner | quote }}
+    bankflow.io/environment: {{ $environment | quote }}
+automountServiceAccountToken: false
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: {{ $name }}
+    bankflow.io/owner: {{ $owner | quote }}
+    bankflow.io/environment: {{ $environment | quote }}
+    bankflow.io/channel: {{ $channel | quote }}
+  annotations:
+    bankflow.io/golden-path: "http-api"
+    bankflow.io/golden-path-version: {{ $goldenPathVersion | quote }}
+    {{- if .Values.spec.features.pilotMode }}
+    bankflow.io/exception-id: {{ .Values.spec.exception.id | quote }}
+    bankflow.io/exception-reason: {{ .Values.spec.exception.reason | quote }}
+    bankflow.io/exception-approved-by: {{ .Values.spec.exception.approvedBy | quote }}
+    bankflow.io/exception-expires-at: {{ .Values.spec.exception.expiresAt | quote }}
+    {{- end }}
+
+spec:
+  replicas: {{ .Values.spec.replicas }}
+
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ $name }}
+
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ $name }}
+        bankflow.io/owner: {{ $owner | quote }}
+        bankflow.io/environment: {{ $environment | quote }}
+        bankflow.io/channel: {{ $channel | quote }}
+
+    spec:
+      serviceAccountName: {{ $name }}
+      automountServiceAccountToken: false
+
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+
+      containers:
+        - name: {{ $name }}
+          image: "{{ .Values.spec.image.repository }}:{{ .Values.spec.image.tag }}"
+          imagePullPolicy: IfNotPresent
+
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+
+          env:
+            - name: APP_VERSION
+              value: {{ .Values.spec.image.tag | quote }}
+
+            - name: PYTHONDONTWRITEBYTECODE
+              value: "1"
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: PLATFORM_CHANNEL
+              value: {{ $channel | quote }}
+            - name: PILOT_MODE
+              value: {{ .Values.spec.features.pilotMode | quote }}
+
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+
+          resources:
+            requests:
+              cpu: {{ $profile.requests.cpu | quote }}
+              memory: {{ $profile.requests.memory | quote }}
+            limits:
+              cpu: {{ $profile.limits.cpu | quote }}
+              memory: {{ $profile.limits.memory | quote }}
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+
+          volumeMounts:
+            - name: temporary-files
+              mountPath: /tmp
+
+      volumes:
+        - name: temporary-files
+          emptyDir: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: {{ $name }}
+    bankflow.io/owner: {{ $owner | quote }}
+    bankflow.io/environment: {{ $environment | quote }}
+
+spec:
+  type: ClusterIP
+
+  selector:
+    app.kubernetes.io/name: {{ $name }}
+
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP

@@ -80,6 +80,8 @@ spec:
 
       securityContext:
         runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
         seccompProfile:
           type: RuntimeDefault
 
@@ -94,6 +96,9 @@ spec:
               protocol: TCP
 
           env:
+            - name: APP_VERSION
+              value: "1.0.0"
+
             - name: PYTHONDONTWRITEBYTECODE
               value: "1"
             - name: PYTHONUNBUFFERED
@@ -132,8 +137,6 @@ spec:
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
-            runAsUser: 10001
-            runAsGroup: 10001
             capabilities:
               drop:
                 - ALL
