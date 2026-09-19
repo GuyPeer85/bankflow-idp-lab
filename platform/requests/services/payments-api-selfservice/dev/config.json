@@ -12,7 +12,7 @@
     "goldenPath": {
       "name": "http-api",
       "channel": "stable",
-      "version": "1.0.0"
+      "version": "1.1.0"
     },
     "image": {
       "repository": "bankflow/payments-api",
@@ -22,7 +22,9 @@
     "replicas": 2,
     "exposure": "internal",
     "features": {
-      "pilotMode": false
+      "pilotMode": false,
+      "autoscaling": true,
+      "podDisruptionBudget": true
     }
   }
 }

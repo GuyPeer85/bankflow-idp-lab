@@ -51,6 +51,12 @@ def validate_request(request, profiles):
     channel = golden_path.get("channel")
     golden_path_version = golden_path.get("version")
     pilot_mode = features.get("pilotMode", False)
+    autoscaling = features.get("autoscaling", False)
+
+    pod_disruption_budget = features.get(
+        "podDisruptionBudget",
+        False,
+    )
 
     require(
         errors,
@@ -122,6 +128,34 @@ def validate_request(request, profiles):
             f"for size={size}",
         )
 
+    require(
+    errors,
+    type(autoscaling) is bool,
+    "features.autoscaling must be true or false",
+)
+
+    require(
+        errors,
+        type(pod_disruption_budget) is bool,
+        "features.podDisruptionBudget must be true or false",
+    )
+
+    if autoscaling and size in profiles and type(replicas) is int:
+        maximum = profiles[size]["replicas"]["maximum"]
+
+        require(
+            errors,
+            replicas < maximum,
+            "autoscaling requires room between replicas "
+            f"and the maximum of {maximum} for size={size}",
+        )
+
+    if pod_disruption_budget and type(replicas) is int:
+        require(
+            errors,
+            replicas >= 2,
+            "podDisruptionBudget requires at least 2 replicas",
+        )
     require(
         errors,
         isinstance(image_repository, str) and bool(image_repository.strip()),
