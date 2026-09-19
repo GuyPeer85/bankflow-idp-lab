@@ -1,0 +1,147 @@
+---
+# Source: bankflow-http-api/templates/workload.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: payments-api-pilot
+  namespace: dev
+  labels:
+    app.kubernetes.io/name: payments-api-pilot
+    bankflow.io/owner: "payments-team"
+    bankflow.io/environment: "dev"
+automountServiceAccountToken: false
+---
+# Source: bankflow-http-api/templates/workload.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: payments-api-pilot
+  namespace: dev
+  labels:
+    app.kubernetes.io/name: payments-api-pilot
+    bankflow.io/owner: "payments-team"
+    bankflow.io/environment: "dev"
+
+spec:
+  type: ClusterIP
+
+  selector:
+    app.kubernetes.io/name: payments-api-pilot
+
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+---
+# Source: bankflow-http-api/templates/workload.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payments-api-pilot
+  namespace: dev
+  labels:
+    app.kubernetes.io/name: payments-api-pilot
+    bankflow.io/owner: "payments-team"
+    bankflow.io/environment: "dev"
+    bankflow.io/channel: "pilot"
+  annotations:
+    bankflow.io/golden-path: "http-api"
+    bankflow.io/golden-path-version: "1.1.0-beta.1"
+    bankflow.io/exception-id: "PILOT-001"
+    bankflow.io/exception-reason: "בדיקת תצורה ניסיונית בלי להשפיע על payments-api הקיים"
+    bankflow.io/exception-approved-by: "platform-team"
+    bankflow.io/exception-expires-at: "2026-11-30"
+
+spec:
+  replicas: 1
+
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: payments-api-pilot
+
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: payments-api-pilot
+        bankflow.io/owner: "payments-team"
+        bankflow.io/environment: "dev"
+        bankflow.io/channel: "pilot"
+
+    spec:
+      serviceAccountName: payments-api-pilot
+      automountServiceAccountToken: false
+
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+
+      containers:
+        - name: payments-api-pilot
+          image: "bankflow/payments-api:1.0.0"
+          imagePullPolicy: IfNotPresent
+
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+
+          env:
+            - name: PYTHONDONTWRITEBYTECODE
+              value: "1"
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: PLATFORM_CHANNEL
+              value: "pilot"
+            - name: PILOT_MODE
+              value: "true"
+
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "250m"
+              memory: "128Mi"
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            capabilities:
+              drop:
+                - ALL
+
+          volumeMounts:
+            - name: temporary-files
+              mountPath: /tmp
+
+      volumes:
+        - name: temporary-files
+          emptyDir: {}
