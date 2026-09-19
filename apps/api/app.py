@@ -215,7 +215,7 @@ def validate_service_request(
         ),
         "preview": preview,
     }
-    
+
 @app.post(
     "/api/v1/service-requests",
     status_code=201,
