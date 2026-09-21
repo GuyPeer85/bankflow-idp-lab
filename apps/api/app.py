@@ -2,11 +2,16 @@
 
 import importlib.util
 from pathlib import Path
-from apps.api.models import ServiceRequest
 from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from apps.api.models import ServiceRequest
+from apps.api.runtime_status import (
+    RuntimeLookupError,
+    RuntimeResourceNotFoundError,
+    get_all_service_runtime_statuses,
+    get_service_runtime_status,
+)
 from apps.api.service_creator import (
     ServiceAlreadyExistsError,
     WorkerExecutionError,
@@ -151,6 +156,70 @@ def readiness():
         "status": "ready",
         "service": "bankflow-platform-api",
     }
+
+
+@app.get(
+    "/api/v1/services/status"
+)
+def all_service_runtime_statuses():
+    """Returns runtime status for every managed service."""
+
+    try:
+        return get_all_service_runtime_statuses()
+    except RuntimeLookupError as error:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "unavailable",
+                "summary": "Service catalog could not be read.",
+                "errors": [str(error)],
+            },
+        )
+
+
+@app.get(
+    "/api/v1/services/{environment}/{service_name}/status"
+)
+def service_runtime_status(
+    environment: str,
+    service_name: str,
+):
+    """Returns a developer-friendly runtime summary."""
+
+    try:
+        return get_service_runtime_status(
+            service_name=service_name,
+            environment=environment,
+        )
+    except ValueError as error:
+        return JSONResponse(
+            status_code=422,
+            content={
+                "status": "rejected",
+                "errors": [str(error)],
+            },
+        )
+    except RuntimeResourceNotFoundError:
+        return JSONResponse(
+            status_code=404,
+            content={
+                "status": "not-found",
+                "summary": (
+                    "The service is not deployed in this environment."
+                ),
+            },
+        )
+    except RuntimeLookupError as error:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "unavailable",
+                "summary": (
+                    "Runtime status could not be read."
+                ),
+                "errors": [str(error)],
+            },
+        )
 
 
 @app.post("/api/v1/service-requests/validate")

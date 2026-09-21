@@ -1,8 +1,24 @@
 const form = document.querySelector("#serviceForm");
 const resultPanel = document.querySelector("#resultPanel");
 const validateButton = document.querySelector("#validateButton");
+const createTabButton = document.querySelector("#createTabButton");
+const servicesTabButton = document.querySelector("#servicesTabButton");
+const createView = document.querySelector("#createView");
+const servicesView = document.querySelector("#servicesView");
+const serviceCount = document.querySelector("#serviceCount");
+const serviceList = document.querySelector("#serviceList");
+const serviceDetailsPanel = document.querySelector(
+  "#serviceDetailsPanel",
+);
+const refreshServicesButton = document.querySelector(
+  "#refreshServicesButton",
+);
+const lastUpdated = document.querySelector("#lastUpdated");
 
 let approvedServiceRequest = null;
+let catalogRefreshTimer = null;
+let selectedServiceKey = null;
+let loadedServices = [];
 
 
 function escapeHtml(value) {
@@ -398,12 +414,315 @@ async function createGitOpsDraft(event) {
 }
 
 
+function serviceKey(service) {
+  return `${service.environment}/${service.serviceName}`;
+}
+
+
+function statusLabel(status) {
+  return String(status || "unknown")
+    .replace("-", " ")
+    .toUpperCase();
+}
+
+
+function renderServiceDetails(service) {
+  const status = service.status || "unavailable";
+  const application = service.argocd || {};
+  const kubernetes = service.kubernetes || {};
+  const problems = service.problems || [];
+
+  const problemItems = problems
+    .map((problem) => {
+      if (typeof problem === "string") {
+        return `<li>${escapeHtml(problem)}</li>`;
+      }
+
+      return `
+        <li>
+          <strong>${escapeHtml(problem.reason)}</strong>
+          — ${escapeHtml(problem.message)}
+        </li>
+      `;
+    })
+    .join("");
+
+  serviceDetailsPanel.className =
+    `preview-card service-details-card status-border-${status}`;
+
+  serviceDetailsPanel.innerHTML = `
+    <div class="preview-heading">
+      <p class="eyebrow">RUNTIME STATUS</p>
+      <h2>${escapeHtml(service.serviceName)}</h2>
+      <span class="environment-badge">
+        ${escapeHtml(service.environment)}
+      </span>
+    </div>
+
+    <div class="result-status runtime-${escapeHtml(status)}">
+      ${escapeHtml(statusLabel(status))}
+      — ${escapeHtml(service.summary || "Status unavailable")}
+    </div>
+
+    ${service.argocd ? `
+      <dl class="preview-details">
+        <div>
+          <dt>Argo CD sync</dt>
+          <dd>${escapeHtml(application.syncStatus)}</dd>
+        </div>
+
+        <div>
+          <dt>Argo CD health</dt>
+          <dd>${escapeHtml(application.healthStatus)}</dd>
+        </div>
+
+        <div>
+          <dt>Ready replicas</dt>
+          <dd>
+            ${escapeHtml(kubernetes.readyReplicas)} /
+            ${escapeHtml(kubernetes.desiredReplicas)}
+          </dd>
+        </div>
+      </dl>
+    ` : ""}
+
+    ${problemItems ? `
+      <div class="error-list">
+        <h3>What needs attention?</h3>
+        <ul>${problemItems}</ul>
+      </div>
+    ` : ""}
+
+    <p class="preview-note">
+      Read-only status. Automatically refreshed every 10 seconds.
+    </p>
+  `;
+}
+
+
+function selectService(key) {
+  selectedServiceKey = key;
+
+  document
+    .querySelectorAll(".service-card")
+    .forEach((card) => {
+      card.classList.toggle(
+        "is-selected",
+        card.dataset.serviceKey === key,
+      );
+    });
+
+  const selectedService = loadedServices.find(
+    (service) => serviceKey(service) === key,
+  );
+
+  if (selectedService) {
+    renderServiceDetails(selectedService);
+  }
+}
+
+
+function renderServiceCatalog(services) {
+  loadedServices = services;
+  serviceCount.textContent = String(services.length);
+
+  if (!services.length) {
+    serviceList.innerHTML = `
+      <div class="catalog-loading">
+        No managed services were found.
+      </div>
+    `;
+    return;
+  }
+
+  serviceList.innerHTML = services
+    .map((service) => {
+      const key = serviceKey(service);
+      const status = service.status || "unavailable";
+
+      const ready = service.kubernetes
+        ? `${service.kubernetes.readyReplicas}/` +
+          `${service.kubernetes.desiredReplicas} ready`
+        : "Runtime unavailable";
+
+      return `
+        <button
+          class="service-card status-${escapeHtml(status)}"
+          type="button"
+          data-service-key="${escapeHtml(key)}"
+        >
+          <span class="service-status-dot"></span>
+
+          <span class="service-card-content">
+            <strong>${escapeHtml(service.serviceName)}</strong>
+
+            <small>
+              ${escapeHtml(service.environment)} ·
+              ${escapeHtml(ready)}
+            </small>
+          </span>
+
+          <span class="service-card-status">
+            ${escapeHtml(statusLabel(status))}
+          </span>
+        </button>
+      `;
+    })
+    .join("");
+
+  document
+    .querySelectorAll(".service-card")
+    .forEach((card) => {
+      card.addEventListener("click", () => {
+        selectService(card.dataset.serviceKey);
+      });
+    });
+
+  const selectedStillExists = services.some(
+    (service) =>
+      serviceKey(service) === selectedServiceKey,
+  );
+
+  selectService(
+    selectedStillExists
+      ? selectedServiceKey
+      : serviceKey(services[0]),
+  );
+}
+
+
+async function loadServiceCatalog() {
+  refreshServicesButton.disabled = true;
+  refreshServicesButton.textContent = "Refreshing...";
+
+  try {
+    const response = await fetch(
+      "/api/v1/services/status",
+    );
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        result.summary || "Catalog request failed",
+      );
+    }
+
+    renderServiceCatalog(
+      result.services || [],
+    );
+
+    lastUpdated.textContent =
+      `Updated ${new Date().toLocaleTimeString()}`;
+  } catch (error) {
+    console.error(error);
+
+    serviceList.innerHTML = `
+      <div class="catalog-error">
+        Could not read service status.
+      </div>
+    `;
+  } finally {
+    refreshServicesButton.disabled = false;
+    refreshServicesButton.textContent = "Refresh now";
+  }
+}
+
+
+function stopCatalogRefresh() {
+  if (catalogRefreshTimer) {
+    clearInterval(catalogRefreshTimer);
+    catalogRefreshTimer = null;
+  }
+}
+
+
+function startCatalogRefresh() {
+  stopCatalogRefresh();
+
+  if (servicesView.hidden || document.hidden) {
+    return;
+  }
+
+  loadServiceCatalog();
+
+  catalogRefreshTimer = setInterval(
+    loadServiceCatalog,
+    10000,
+  );
+}
+
+
+function showPortalView(viewName) {
+  const showServices = viewName === "services";
+
+  createView.hidden = showServices;
+  servicesView.hidden = !showServices;
+
+  createTabButton.classList.toggle(
+    "is-active",
+    !showServices,
+  );
+
+  servicesTabButton.classList.toggle(
+    "is-active",
+    showServices,
+  );
+
+  createTabButton.setAttribute(
+    "aria-selected",
+    !showServices,
+  );
+
+  servicesTabButton.setAttribute(
+    "aria-selected",
+    showServices,
+  );
+
+  if (showServices) {
+    startCatalogRefresh();
+  } else {
+    stopCatalogRefresh();
+  }
+}
+
+
 form.addEventListener(
   "input",
   () => {
     if (approvedServiceRequest) {
       approvedServiceRequest = null;
       showWaitingForValidation();
+    }
+  },
+);
+
+
+createTabButton.addEventListener(
+  "click",
+  () => showPortalView("create"),
+);
+
+
+servicesTabButton.addEventListener(
+  "click",
+  () => showPortalView("services"),
+);
+
+
+refreshServicesButton.addEventListener(
+  "click",
+  loadServiceCatalog,
+);
+
+
+document.addEventListener(
+  "visibilitychange",
+  () => {
+    if (document.hidden) {
+      stopCatalogRefresh();
+    } else if (!servicesView.hidden) {
+      startCatalogRefresh();
     }
   },
 );
