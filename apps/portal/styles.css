@@ -208,6 +208,22 @@ h1 {
   gap: 20px;
 }
 
+.form-action-buttons {
+  display: flex;
+  gap: 12px;
+}
+
+.secondary-button {
+  color: #087c82;
+  background: #ffffff;
+  border: 1px solid #087c82;
+}
+
+.secondary-button:hover {
+  color: #ffffff;
+  background: #087c82;
+}
+
 .selected-path {
   color: #526579;
   font-size: 0.86rem;
@@ -299,6 +315,31 @@ button:disabled {
 
 .preview-card.is-rejected {
   border-top: 4px solid #c44536;
+}
+
+.preview-card.is-progressing {
+  border-top: 4px solid #d28b16;
+}
+
+.runtime-healthy {
+  color: #12613f;
+  background: #e8f7ef;
+  border: 1px solid #a9dfc2;
+}
+
+.runtime-progressing {
+  color: #7a4b00;
+  background: #fff7e6;
+  border: 1px solid #efcf8b;
+}
+
+.runtime-failed,
+.runtime-not-found,
+.runtime-unavailable,
+.runtime-rejected {
+  color: #9d2d24;
+  background: #fff0ee;
+  border: 1px solid #efb4ae;
 }
 
 .result-status {
@@ -479,6 +520,10 @@ button:disabled {
 
   .form-actions {
     align-items: stretch;
+    flex-direction: column;
+  }
+
+  .form-action-buttons {
     flex-direction: column;
   }
 

@@ -67,6 +67,7 @@ jobs:
           python -m py_compile \
             apps/api/app.py \
             apps/api/models.py \
+            apps/api/runtime_status.py \
             apps/api/service_creator.py \
             platform/worker/validate_request.py
 

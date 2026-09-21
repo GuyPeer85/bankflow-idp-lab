@@ -30,203 +30,294 @@
   </header>
 
   <main class="page">
-    <section class="page-heading">
-      <p class="eyebrow">SELF-SERVICE</p>
-      <h1>Create a service</h1>
+    <nav class="portal-tabs" aria-label="Portal sections">
+      <button
+        id="createTabButton"
+        class="tab-button is-active"
+        type="button"
+        aria-controls="createView"
+        aria-selected="true"
+      >
+        Create Service
+      </button>
 
-      <p class="description">
-        Describe what your application needs. The platform
-        will validate the request before creating anything.
-      </p>
+      <button
+        id="servicesTabButton"
+        class="tab-button"
+        type="button"
+        aria-controls="servicesView"
+        aria-selected="false"
+      >
+        My Services
+        <span id="serviceCount" class="tab-count">–</span>
+      </button>
+    </nav>
+
+    <section id="createView" class="portal-view">
+      <section class="page-heading">
+        <p class="eyebrow">SELF-SERVICE</p>
+        <h1>Create a service</h1>
+
+        <p class="description">
+          Describe what your application needs. The platform
+          will validate the request before creating anything.
+        </p>
+      </section>
+
+      <div class="workspace">
+        <form id="serviceForm" class="request-card">
+          <section class="form-section">
+            <div class="section-heading">
+              <span class="section-number">1</span>
+
+              <div>
+                <h2>Service identity</h2>
+                <p>Who owns this service?</p>
+              </div>
+            </div>
+
+            <div class="field-grid">
+              <label class="field">
+                <span>Service name</span>
+
+                <input
+                  id="serviceName"
+                  name="serviceName"
+                  value="payments-api-selfservice"
+                  required
+                >
+
+                <small>
+                  Lowercase letters, numbers and hyphens.
+                </small>
+              </label>
+
+              <label class="field">
+                <span>Owner</span>
+
+                <input
+                  id="owner"
+                  name="owner"
+                  value="payments-team"
+                  required
+                >
+
+                <small>
+                  Team responsible for the service.
+                </small>
+              </label>
+            </div>
+          </section>
+
+          <section class="form-section">
+            <div class="section-heading">
+              <span class="section-number">2</span>
+
+              <div>
+                <h2>Runtime</h2>
+                <p>Where and how should it run?</p>
+              </div>
+            </div>
+
+            <div class="field-grid">
+              <label class="field">
+                <span>Environment</span>
+
+                <select id="environment" name="environment">
+                  <option value="dev">Development</option>
+                  <option value="test">Test</option>
+                  <option value="prod">Production</option>
+                </select>
+              </label>
+
+              <label class="field">
+                <span>Workload type</span>
+
+                <select id="workloadType" name="workloadType">
+                  <option value="http-api">HTTP API</option>
+                  <option disabled>
+                    Frontend — coming soon
+                  </option>
+                  <option disabled>
+                    Background worker — coming soon
+                  </option>
+                </select>
+              </label>
+
+              <label class="field">
+                <span>Resource size</span>
+
+                <select id="size" name="size">
+                  <option value="small">Small</option>
+                  <option value="medium">Medium</option>
+                  <option value="large">Large</option>
+                </select>
+
+                <small>
+                  Resources come from approved platform profiles.
+                </small>
+              </label>
+
+              <label class="field">
+                <span>Replicas</span>
+
+                <input
+                  id="replicas"
+                  name="replicas"
+                  type="number"
+                  value="2"
+                  min="1"
+                  required
+                >
+              </label>
+
+              <label class="field">
+                <span>Exposure</span>
+
+                <select id="exposure" name="exposure">
+                  <option value="internal">Internal</option>
+                  <option disabled>
+                    External — coming soon
+                  </option>
+                </select>
+              </label>
+            </div>
+          </section>
+
+          <section class="form-section">
+            <div class="section-heading">
+              <span class="section-number">3</span>
+
+              <div>
+                <h2>Container image</h2>
+                <p>Which application version should run?</p>
+              </div>
+            </div>
+
+            <div class="field-grid">
+              <label class="field field-wide">
+                <span>Image repository</span>
+
+                <input
+                  id="imageRepository"
+                  name="imageRepository"
+                  value="bankflow/payments-api"
+                  required
+                >
+              </label>
+
+              <label class="field">
+                <span>Image tag</span>
+
+                <input
+                  id="imageTag"
+                  name="imageTag"
+                  value="1.0.0"
+                  required
+                >
+
+                <small>
+                  The latest tag is not allowed.
+                </small>
+              </label>
+            </div>
+          </section>
+
+          <div class="form-actions">
+            <div class="selected-path">
+              Golden Path:
+              <strong>http-api / stable / 1.0.0</strong>
+            </div>
+
+            <div class="form-action-buttons">
+              <button id="validateButton" type="submit">
+                Validate request
+              </button>
+            </div>
+          </div>
+        </form>
+
+        <aside id="resultPanel" class="preview-card">
+          <div class="preview-heading">
+            <p class="eyebrow">REQUEST PREVIEW</p>
+            <h2>Waiting for validation</h2>
+          </div>
+
+          <div class="empty-preview">
+            <div class="document-icon">✓</div>
+
+            <p>
+              Complete the form and validate the request.
+            </p>
+
+            <small>
+              Nothing will be created during validation.
+            </small>
+          </div>
+        </aside>
+      </div>
     </section>
 
-    <div class="workspace">
-      <form id="serviceForm" class="request-card">
-        <section class="form-section">
-          <div class="section-heading">
-            <span class="section-number">1</span>
+    <section
+      id="servicesView"
+      class="portal-view"
+      hidden
+    >
+      <section class="page-heading services-heading">
+        <div>
+          <p class="eyebrow">RUNTIME CATALOG</p>
+          <h1>My Services</h1>
 
-            <div>
-              <h2>Service identity</h2>
-              <p>Who owns this service?</p>
-            </div>
-          </div>
+          <p class="description">
+            Live deployment status from Argo CD and Kubernetes.
+          </p>
+        </div>
 
-          <div class="field-grid">
-            <label class="field">
-              <span>Service name</span>
+        <div class="catalog-refresh">
+          <span id="lastUpdated">
+            Not updated yet
+          </span>
 
-              <input
-                id="serviceName"
-                name="serviceName"
-                value="payments-api-selfservice"
-                required
-              >
-
-              <small>
-                Lowercase letters, numbers and hyphens.
-              </small>
-            </label>
-
-            <label class="field">
-              <span>Owner</span>
-
-              <input
-                id="owner"
-                name="owner"
-                value="payments-team"
-                required
-              >
-
-              <small>
-                Team responsible for the service.
-              </small>
-            </label>
-          </div>
-        </section>
-
-        <section class="form-section">
-          <div class="section-heading">
-            <span class="section-number">2</span>
-
-            <div>
-              <h2>Runtime</h2>
-              <p>Where and how should it run?</p>
-            </div>
-          </div>
-
-          <div class="field-grid">
-            <label class="field">
-              <span>Environment</span>
-
-              <select id="environment" name="environment">
-                <option value="dev">Development</option>
-                <option value="test">Test</option>
-                <option value="prod">Production</option>
-              </select>
-            </label>
-
-            <label class="field">
-              <span>Workload type</span>
-
-              <select id="workloadType" name="workloadType">
-                <option value="http-api">HTTP API</option>
-                <option disabled>Frontend — coming soon</option>
-                <option disabled>
-                    Background worker — coming soon
-                </option>
-            </select>
-            </label>
-
-            <label class="field">
-              <span>Resource size</span>
-
-              <select id="size" name="size">
-                <option value="small">Small</option>
-                <option value="medium">Medium</option>
-                <option value="large">Large</option>
-              </select>
-
-              <small>
-                Resources come from approved platform profiles.
-              </small>
-            </label>
-
-            <label class="field">
-              <span>Replicas</span>
-
-              <input
-                id="replicas"
-                name="replicas"
-                type="number"
-                value="2"
-                min="1"
-                required
-              >
-            </label>
-
-            <label class="field">
-              <span>Exposure</span>
-
-              <select id="exposure" name="exposure">
-                <option value="internal">Internal</option>
-                <option disabled>External — coming soon</option>
-              </select>
-            </label>
-          </div>
-        </section>
-
-        <section class="form-section">
-          <div class="section-heading">
-            <span class="section-number">3</span>
-
-            <div>
-              <h2>Container image</h2>
-              <p>Which application version should run?</p>
-            </div>
-          </div>
-
-          <div class="field-grid">
-            <label class="field field-wide">
-              <span>Image repository</span>
-
-              <input
-                id="imageRepository"
-                name="imageRepository"
-                value="bankflow/payments-api"
-                required
-              >
-            </label>
-
-            <label class="field">
-              <span>Image tag</span>
-
-              <input
-                id="imageTag"
-                name="imageTag"
-                value="1.0.0"
-                required
-              >
-
-              <small>
-                The latest tag is not allowed.
-              </small>
-            </label>
-          </div>
-        </section>
-
-        <div class="form-actions">
-          <div class="selected-path">
-            Golden Path:
-            <strong>http-api / stable / 1.0.0</strong>
-          </div>
-
-          <button id="validateButton" type="submit">
-            Validate request
+          <button
+            id="refreshServicesButton"
+            class="secondary-button"
+            type="button"
+          >
+            Refresh now
           </button>
         </div>
-      </form>
+      </section>
 
-      <aside id="resultPanel" class="preview-card">
-        <div class="preview-heading">
-          <p class="eyebrow">REQUEST PREVIEW</p>
-          <h2>Waiting for validation</h2>
-        </div>
+      <div class="services-workspace">
+        <section class="service-list-card">
+          <div id="serviceList" class="service-list">
+            <div class="catalog-loading">
+              Open My Services to load the catalog.
+            </div>
+          </div>
+        </section>
 
-        <div class="empty-preview">
-          <div class="document-icon">✓</div>
+        <aside
+          id="serviceDetailsPanel"
+          class="preview-card service-details-card"
+        >
+          <div class="preview-heading">
+            <p class="eyebrow">RUNTIME STATUS</p>
+            <h2>Select a service</h2>
+          </div>
 
-          <p>
-            Complete the form and validate the request.
-          </p>
+          <div class="empty-preview">
+            <div class="document-icon">●</div>
 
-          <small>
-            Nothing will be created during validation.
-          </small>
-        </div>
-      </aside>
-    </div>
+            <p>
+              Choose a service to see its runtime status.
+            </p>
+          </div>
+        </aside>
+      </div>
+    </section>
   </main>
+
   <script src="/static/app.js"></script>
 </body>
 </html>
